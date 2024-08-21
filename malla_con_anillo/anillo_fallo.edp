@@ -1,0 +1,503 @@
+load "msh3"
+load "gmsh"
+load "medit"
+load "iovtk"
+load "lapack"
+
+
+//DEFINICION DE VARIABLES
+
+// Parametros: definimos todos los parametros necesarios para el modelo
+
+real eps = 4;
+real NC = 0.8;
+int K =  1; // K define la cantidad de elementos de la serie de Fourier
+real tEnd = 10.0^(-5.0); // en FreFEM es importante diferenciar entre 10 y 10.0
+int Tdof = 100;
+real dt = tEnd/Tdof; 
+real dt2 = 1.0/dt;
+int power =10.0^6;
+Tdof=5; // con Tdof cambiamos la cantidad de pasos que daremos en la discretizacion temporal
+int solv = 1;// solv se puede modificar con valores 0 o 1, cada uno hace que los sistemas lineales se resuelvan con 'sparsesolver' o el metodo GMRES
+real rhoa=0.7;
+
+real delta = 0.8;
+
+string stringaux;
+        
+// Constantes físicas
+
+int n=50;
+int largo=5;
+real mu0 = 4.0*pi*1e-7;
+real mu = 1/mu0;
+
+real e0 = 8.8419413*10.0^(-12.0);
+real tau;
+real countfloat;
+int countint,countint2;
+string thetastring;
+real normalizer = 1/ sqrt(2 *pi);
+
+real package = 0.0001;
+real package2 = package;
+
+real epsais = 3.35 ;
+real tol = 0.0;
+real epscond = tol;
+real epsair =3.5;
+real sigmaais = tol;
+real sigmacond = 6.0;
+real sigmaair = tol;
+real sigmapresspan = 0.0;
+real epspresspan = 3.35;
+real epsringinsul =2.0;
+
+//Constantes geometricas
+
+int Nr = 6;
+int Nz = 2;
+int ncoil = Nz*Nr;
+int nins=Nz;
+int nconductores = ncoil;
+
+int inner= 10;
+int innerp=11;
+int out =20;
+
+// norm sequence
+
+real Eresidual;
+real Ecurrent;
+
+// Variables del impulso
+
+// magnitud del impulso en cada instante de tiempo
+real[int] boundaryf =[0.00000000e+00,7.15440611e-01,8.76790317e-01,7.58310646e-01, 6.55840997e-01,5.67217955e-01,4.90570443e-01,4.24280221e-01, 3.66947721e-01,3.17362496e-01,2.74477665e-01,2.37387813e-01, 2.05309870e-01,1.77566582e-01,1.53572213e-01,1.32820176e-01, 1.14872338e-01,9.93497706e-02,8.59247500e-02,7.43138370e-02, 6.42718933e-02,5.55869060e-02,4.80755111e-02,4.15791224e-02, 3.59605832e-02,3.11012708e-02,2.68985917e-02,2.32638158e-02, 2.01202031e-02,1.74013831e-02,1.50499541e-02,1.30162711e-02, 1.12573973e-02,9.73619808e-03,8.42055679e-03,7.28269660e-03, 6.29859415e-03,5.44747234e-03,4.71136165e-03,4.07472075e-03, 3.52410840e-03,3.04789967e-03,2.63604048e-03,2.27983535e-03, 1.97176381e-03,1.70532163e-03,1.47488347e-03,1.27558416e-03, 1.10321593e-03,9.54139627e-04,8.25207832e-04,7.13698443e-04, 6.17257191e-04,5.33847934e-04,4.61709674e-04,3.99319375e-04, 3.45359805e-04,2.98691731e-04,2.58329859e-04,2.23422041e-04, 1.93231277e-04,1.67120156e-04,1.44537401e-04,1.25006227e-04, 1.08114279e-04,9.35049205e-05,8.08697077e-05,6.99418768e-05, 6.04907111e-05,5.23166706e-05,4.52471789e-05,3.91329794e-05, 3.38449848e-05,2.92715508e-05,2.53161196e-05,2.18951814e-05, 1.89365106e-05,1.63776417e-05,1.41645497e-05,1.22505103e-05, 1.05951129e-05,9.16340744e-06,7.92516669e-06,6.85424800e-06, 5.92804132e-06,5.12699189e-06,4.43418735e-06,3.83500069e-06, 3.31678145e-06,2.86858857e-06,2.48095948e-06,2.14571027e-06, 1.85576290e-06,1.60499579e-06,1.38811454e-06,1.20054022e-06, 1.03831259e-06,8.98006602e-07,7.76659999e-07,6.71710823e-07];
+
+// matriz conductor
+
+real[int] matrixconductor =[12, 11, 10,  9,  8,  7,  1,  2,  3,  4,  5,  6] ; //matriz de orden de enumeracion de conductores
+
+// Enumeracion de las entidades geometricas
+
+int offsetcond = 100000000;
+int offsetaislante = 200000000;
+int offsetair = 300000001;
+int offset2condboundary = 150000000;
+int offsetcondmedia =230000000;
+
+int air = offsetair;
+int cond = 100000001;
+int coil1boundary = offset2condboundary + matrixconductor(0);
+int outboundary =350000001;
+
+int offsetpresspan = 110000000 ;
+int offsetring = 130000000 ;
+int offset2ringinsul = 130000300 ;
+
+// MALLA 
+
+meshS Th = readmeshS("rhonafine2.mesh") ;
+cout << "malla" << endl;
+
+int[int] lab = labels(Th);
+cout << "Informacion del enmallado:"<<  endl; 
+cout << "Labels: " << lab << endl;
+
+int NbVertices = Th.nv;
+cout << "La malla posee " << NbVertices << " number of nodes" << endl;
+int NbBoundaryElements = Th.nt;
+cout << "Number of boundary element = " << NbBoundaryElements+NbVertices-2 << endl;
+plot(Th, wait=1); // Se despliega la malla
+
+// OPERADORES DIFERENCIALES AXISIMETRICOS, pueden ser consultados en el informe
+
+NewMacro Gradk(u,k) [dx(u),dy(u),1.0i*k*u/x] EndMacro
+NewMacro Curlk(Ar, Az, Ao, k) [1.0i*k*Az/x - dy(Ao),dx(Ao)+ Ao/x-1.0i*k*Ar/x , dy(Ar)-dx(Az)] EndMacro
+NewMacro dn(ur,uz,uo) (ur*N.x) EndMacro
+NewMacro dn2(ur,uz,uo) (uz*N.y) EndMacro
+NewMacro Grad(u) [dx(u),dz(u)/x, dy(u)] EndMacro
+NewMacro Curl(Ar, Az, Ao) [dz(Ay)/x - dy(Ao), dy(Ar)-dx(Az), dx(Ao)+ Ao/x-dz(Ar)/x] EndMacro
+NewMacro crossprod(a,b,c,ur,uz,uo) [a*uz-b*ur,b*uo-c*uz,c*ur-a*uo] EndMacro
+    
+// ESPACIO DE FUNCIONES     
+
+func PkVector = [P1, P1, P1]; // espacio base para el potencial magnetico
+func Pk = P1;  // espacio base para el potencial electrico
+
+fespace Ah(Th,PkVector); // espacio de funciones para el potencial magnetico
+fespace Ehnorm(Th,Pk); // espacio de funciones para el campo electrico
+fespace Ph(Th, Pk); // espacio de funciones para el potencial electrico
+fespace Ph0(Th,P0); // espacio de funciones para las variables del medio: permitividad, conductividad  y permeabilidad.
+
+fespace Xh = Ah*Ph; // Se usa un espacio producto para la formulacion mixta
+
+// VARIABLES EN LOS ESPACIOS DE FUNCIONES
+
+Ah<complex> [ur, uz, uo],[urold2,uzold2,uoold2];// vector para el potencial magnetico
+Ah<complex> [urC, uzC, uoC] = [0.0,0.0,1.0];
+
+Ah<complex> [Br,Bz,Bo];
+Ah<complex> [Er,Ez,Eo];
+Ah<complex> [Asaver,Asavez,Asaveo];
+Ah<complex> [Asaver2,Asavez2,Asaveo2]; // old data
+Ah<complex> [Bsaver2,Bsavez2,Bsaveo2]; // old data
+Ah<complex> [Asaver2R,Asavez2R,Asaveo2R]; // old data
+Ah<complex> [Bsaver2R,Bsavez2R,Bsaveo2R]; // old data
+Ah<complex> [Dr,Dz,Do];
+
+Ph<complex> q,p; // Funcion test y funcion que representa a varphi
+Ph pplot;
+
+Ehnorm E,B;
+
+// otras variables
+
+complex[int] Em(nconductores),Emold(nconductores);
+complex[int] deltaV(nconductores),deltaVold(nconductores),current(nconductores),currentold(nconductores);
+int DS =Tdof;
+	
+Ph<complex>[int] psave(DS);
+Ah<complex>[int] [Erd,Ezd,Eod](DS);
+Ah<complex>[int] [Brd,Bzd,Bod](DS);
+
+Ah<complex> [ErdR,EzdR,EodR];
+
+complex Vsold,Vs;
+
+// FUNCIONES PARA VARIABLES DEL MEDIO
+
+Ph0 sigma = sigmaair* (region == air);
+Ph0 epsilon   =  epsair * (region ==air)*e0;
+//en todos vale lo mismo, por lo que no importa el orden puesto en los conductores
+for(int coil =1; coil < ncoil+1; coil = coil + 1)
+{
+    countint = coil + offsetcond;
+    sigma = sigma + sigmacond*power * (region == countint);
+    epsilon = epsilon + epscond*e0 * (region == countint);
+}
+for(int ins =1;ins < nins+1; ins = ins +1)
+{
+    countint = ins + offsetaislante;
+    sigma = sigma + sigmaais * (region == countint);
+    epsilon = epsilon + epsais*e0 * (region == countint);
+}
+
+// Agregamos el presspan y los anillos 
+
+for(int i=1; i <nins; i =i+1)
+{
+    epsilon = epsilon + epsais*e0 * (region == offsetcondmedia+ i);
+}
+        
+int Nesr = 1;
+int Npp = 1;
+
+if(Nesr >0) // Anillos en caso de que exista
+{
+    for(int i =1; i < Nesr +1 ; i =i+1)
+    {
+        sigma = sigma + power*sigmacond*(region == offsetring + i*2);
+        epsilon = epsilon + e0*epscond * (region == offsetring +i*2);
+        epsilon = epsilon + e0*epsringinsul * (region == offset2ringinsul +i*2);
+    }
+}
+if(Npp >0) // Modificar variables en el presspan
+{
+    for(int i =1; i < Nesr +1 ; i =i+1)
+    {
+        sigma = sigma + power*sigmapresspan*(region == offsetpresspan + i);
+        epsilon = epsilon + e0*epspresspan * (region == offsetpresspan +i);
+    }
+}
+		
+// Data para guardar impulsos en cada conductor
+
+real[int,int] Deltadata(ncoil+1, Tdof); //contamos el tiempo en la segund componente
+		
+cout << "Iniciando solucion por elementos finitos:" << endl;
+
+// INICIO DE ITERACIONES
+
+complex[int,int] plotarray(nconductores-1,nconductores-1);
+for(int i=0; i <nconductores-1;i=i+1)
+{
+    plotarray(i,i) = 1.0 ;
+    if( i < nconductores-1 -1 )
+    {
+        plotarray(i,nconductores-1-1) = -1;
+    }
+}
+
+// INICIO DE ITERACIONES
+
+for(int k = 0; k < K+1; k = k+3)
+{
+
+    if(k ==0)
+    {
+        k=0.001;
+    }
+
+    cout << "***********************************************************************"  <<endl ;
+    cout << "***********************************************************************"  <<endl ;
+    cout << "Elemento " << k << "-esimo de la serie de Fourier"<<endl ; 
+    cout << "***********************************************************************"  <<endl ; 
+    cout << "***********************************************************************"  <<endl ;    
+
+    // INICIALIZACION DE FUNCIONES
+
+    Ah<complex> [urold, uzold, uoold] = [0.0,0.0,0.0];
+    Ph<complex> pold = 0.0;
+    deltaVold =0.0;
+
+    // DISCRETIZACION TEMPORAL
+
+    for(int t = 1; t < Tdof ; t =t+ 1)
+    { 
+        cout << "   Time step: " << t <<" of " << Tdof <<endl ;
+        real cpu11 = clock();
+        Ah<complex> [ur, uz, uo];// inicializacion de A
+        Ah<complex> [vr, vz, vo];// inicializacion de varphi
+
+        complex boundary;
+
+        boundary = boundaryf(t) *1050*1000;
+        
+		deltaVold(0) = boundary;
+
+        cout << deltaVold << endl;
+
+        cout << "boundary " << boundary <<endl;
+       
+        Ah<complex> [gradAr,gradAz,gradAo] = [0.0,0.0,1.0]; // inicializamos a \nabla \alpha
+
+        //ensamblamos la matriz asociada a la parte de campos del problema
+
+        real flag1;
+        if(k==0){ flag1=0.0;}else{ flag1=1.0;}
+
+        varf axy(<[ur, uz, uo],[p]> , <[vr, vz, vo],[q]>) =
+
+            int2d(Th)(10.0^(-20)*p*q*(1+1i*flag1))
+            +int2d(Th)(10.0^(-20)*[ur, uz, uo]'*[vr, vz, vo]*(1+1i*flag1))
+  
+            + int2d(Th)(
+            + sigma* [ur, uz, uo]'*[vr, vz, vo] *(x) * package
+            + epsilon*Gradk(p,k) '*[vr, vz, vo] *(x)  * package
+            + (NC)*dt*sigma* Gradk(p,k)'*[vr, vz, vo] *(x)  * package
+            
+            + (NC)*mu*dt* Curlk(ur, uz, uo,k)'* Curlk(vr, vz, vo,k)*(x)  * package
+            )
+            + int2d(Th)
+            (
+            - sigma* [urold, uzold, uoold]'*[vr, vz, vo] *(x)  * package
+            - epsilon*Gradk(pold,k)'*[vr, vz, vo] *(x)  * package
+            + (1.0-NC)*dt*sigma* Gradk(pold,k)'*[vr, vz, vo] *(x)  * package
+            + (1.0-NC)*mu*dt* Curlk(urold, uzold, uoold,k)'* Curlk(vr, vz, vo,k)*(x)  * package
+            )
+            +
+            // 2nd equation 
+            int2d(Th)(
+            + sigma* [ur, uz, uo]'*Gradk(q,k) *(x)  * package
+            + epsilon*Gradk(p,k)'*Gradk(q,k) *(x)  * package
+            + (NC)*dt*sigma * Gradk(p,k)'*Gradk(q,k) *(x) * package
+            )
+            + int2d(Th)(
+            + (1.0-NC)*dt*sigma * Gradk(pold,k)'*Gradk(q,k) *(x) * package
+            - epsilon*Gradk(pold,k)'*Gradk(q,k) *(x)       * package
+            - sigma* [urold, uzold, uoold]'*Gradk(q,k) *(x) * package)
+
+            //1st equation RHS: ANILLO ELESTROCTATICO
+            + int2d(Th, offsetring + 2)( dt* sigma* deltaVold(0)  * [gradAr,gradAz,gradAo]' * [vr, vz, vo] * (x)* package  *package2  )
+            + int2d(Th, offsetring + 2)( epsilon * (deltaVold(0) - deltaV(0)) * [gradAr,gradAz,gradAo]' * [vr, vz, vo] *(x)* package * package2 )
+            // 2nd equation RHS
+            - int2d(Th,offsetring + 2)( dt* sigma * deltaVold(0)  * [gradAr,gradAz,gradAo]' * Gradk(q,k) *(x)* package2 )
+            - int2d(Th,offsetring + 2)( epsilon * (deltaVold(0) - deltaV(0))* [gradAr,gradAz,gradAo]' * Gradk(q,k) *(x)* package2) 
+
+
+            // VOLTAJE INDUCIDO EN CADA CONDUCTOR            
+            // 1st equation RHS
+            + int2d(Th,offsetcond + matrixconductor(0))( dt* sigma* deltaVold(0)  * [gradAr,gradAz,gradAo]' * [vr, vz, vo] * (x)* package2 )
+            + int2d(Th,offsetcond + matrixconductor(0))( epsilon * (deltaVold(0) - deltaV(0)) * [gradAr,gradAz,gradAo]' * [vr, vz, vo] *(x)* package2)
+            // 2nd equation RHS
+            - int2d(Th,offsetcond + matrixconductor(0))( dt* sigma * deltaVold(0)  * [gradAr,gradAz,gradAo]' * Gradk(q,k) *(x)* package2 )
+            - int2d(Th,offsetcond + matrixconductor(0))( epsilon *  (deltaVold(0) - deltaV(0))* [gradAr,gradAz,gradAo]' * Gradk(q,k) *(x)* package2) 
+
+        /*1*/ + on(coil1boundary, p= boundary) +on(150000011.0, p = deltaVold(1) )+on(150000010.0, p = deltaVold(2) )+on(150000009.0, p = deltaVold(3) )+on(150000008.0, p = deltaVold(4) )+on(150000007.0, p = deltaVold(5) )+on(150000001.0, p = deltaVold(6) )+on(150000002.0, p = deltaVold(7) )+on(150000003.0, p = deltaVold(8) )+on(150000004.0, p = deltaVold(9) )+on(150000005.0, p = deltaVold(10) )+on(150000006.0, p = deltaVold(11) )
+        /*anillo*/ + on(180000002, p = boundary) 
+        + on(outboundary, p =0.0)
+        ;
+
+        // SISTEMA LINEAL
+
+        matrix<complex> A = axy(Xh,Xh);
+        complex[int] b= axy(0,Xh);
+        
+        matrix<complex> AA = A;
+        matrix<complex> BB(nconductores,Ah.ndof + Ph.ndof);
+        complex[int] bb=b;
+        complex[int] bbaux(nconductores);
+
+        //SOLVER
+
+        if(solv ==1)
+        {
+            set(AA, solver = sparsesolver);
+        }
+        if(solv == 0)
+        {
+            set(AA, solver = GMRES, eps =1.e^-10);
+        }
+        
+        cout << "       Dimension del problema : "<<A.n << endl;
+		cout << "       Sistema lineal generado. Resolviendo sistema lineal..." << endl;
+
+        // RESOLUCION SISTEMA LINEAL
+
+        complex[int] sol = AA^-1*bb;
+
+        // Calculo de residuo
+
+        complex[int] residual = A*sol;
+        residual = residual - b;
+        cout << "       Residuo del sistema lineal = "<< sqrt(residual '*residual)  << endl;
+
+        // POST PROCESAMIENTO DE DATOS
+
+        [ur[],p[]] = sol; //dispatch the solution   
+
+        deltaVold(0) =boundary;
+        complex[int] arrayaux = plotarray * deltaVold;
+        
+        Deltadata(0,t) = real(boundary);
+        for(int i =0; i < nconductores - 1; i = i +1)
+        {
+            real auxgato = real(arrayaux(i));
+            Deltadata(i+1,t) = auxgato;
+        }
+
+        if(t>2)
+        {
+            [Dr,Dz,Do] = [ur,uz,uo] - 2*[urold,uzold,uoold] + [urold2,uzold2,uoold2];
+            [Dr,Dz,Do] = [Dr,Dz,Do]*dt2;
+        }
+
+        complex corrientetotal;
+
+        cout << "       *SISTEMA LINEAL RESUELTO*. Guardando datos..." << endl;
+
+        if(t>-1) //guardamos datos desde t=0
+        {
+            [gradAr,gradAz,gradAo]=[0,0,p*(-k^2)/x];
+            [Asaver2,Asavez2,Asaveo2] = -1*([ur,uz,uo]-[urold,uzold,uoold]);
+            [Asaver2,Asavez2,Asaveo2] = [Asaver2,Asavez2,Asaveo2]*dt2*normalizer;
+            [Asaver2,Asavez2,Asaveo2] = [Asaver2,Asavez2,Asaveo2]  - [dx(p), dy(p), 1.0*(k)*p/x]*normalizer;
+            [Asaver2,Asavez2,Asaveo2] = [Asaver2,Asavez2,Asaveo2]  - [gradAr,gradAz,gradAo]*normalizer;
+            
+            [Erd[t],Ezd[t],Eod[t]] =  [Erd[t],Ezd[t],Eod[t]] +  [Asaver2,Asavez2,Asaveo2];
+            
+            [Brd[t],Bzd[t],Bod[t]] =  [Brd[t],Bzd[t],Bod[t]] + [1.0i*k*uz/x - dy(uo),dx(uo)+ uo/x-1.0i*k*ur/x , dy(ur)-dx(uz)]*normalizer;
+
+            // Calculamos lo que agrega el termino agregado en la serie
+
+            Eresidual = int2d(Th)(
+                (
+                [real(Asaver2),real(Asavez2),real(Asaveo2)]'*[real(Asaver2),real(Asavez2),real(Asaveo2)]
+                )^2
+            )
+            / int2d(Th)(1.0);
+            Eresidual= sqrt(Eresidual);
+            cout <<"            E:Se ha agregado la magnitud en L^2:" << Eresidual << endl;
+            cout <<"            E: maximo aproximado =" << 
+            (int2d(Th)(
+                (
+                [real(Asaver2),real(Asavez2),real(Asaveo2)]'*[real(Asaver2),real(Asavez2),real(Asaveo2)]
+                )^15.0
+            ))^(1.0/15.0)
+            
+            << endl;
+            Eresidual = sqrt( int2d(Th)( real(p)'*real(p) ));
+            cout << "           p:Ha ido agregado la magnitud en L^2:" << Eresidual << endl;
+            Eresidual = Eresidual = sqrt( int2d(Th)(
+                (
+                [real(Brd[t]),real(Bzd[t]),real(Bod[t])]'*[real(Brd[t]),real(Bzd[t]),real(Bod[t])]
+                )^2
+            ));
+            cout << "           B:Ha ido agregado la magnitud en L^2:" << Eresidual << endl;
+            Eresidual = Eresidual = sqrt( int2d(Th)(
+                (
+                [real(ur),real(uz),real(uo)]'
+                *[real(ur),real(uz),real(uo)]
+                )^2
+            ));
+            cout << "           A:Ha ido agregado la magnitud en L^2:" << Eresidual << endl;
+
+			psave[t] = real(p);
+
+            // GUARDAR DATOS EN FORMAO VTK
+
+            savevtk("output/p2-" + t+ ".vtu",Th, real(-1.0i*k*psave[t]/x) );
+            // Guardar J
+            savevtk("output/J-" + t+ ".vtu",Th, sigma*[real(Erd[t]),real(Ezd[t]),real(Eod[t])] );
+
+            cout << "           Corriente en el primer conductor =" << int2d(Th,offsetcond + matrixconductor(0)) (-sigma *real(Eod[t]) ) << endl;
+        }
+
+        real cpu12 = clock();
+        cout <<"CPU time (iteracion completa) = " << (cpu12-cpu11) << endl;
+
+        // ACTUALIZACION DE VARIABLES 
+
+        currentold = current;
+        [urold,uzold, uoold] = [ur,uz,uo];
+        if(t>1)
+        {
+            [urold2,uzold2,uoold2] = [urold,uzold, uoold];
+        }
+
+        pold = p;
+        deltaV = deltaVold;
+
+    }
+       
+    //-----------------------------------   REALIZAMOS LO MISMO PARA K = -K ---------------------------------------
+    //-----------------------------------   REALIZAMOS LO MISMO PARA K = -K ---------------------------------------
+    //-----------------------------------   REALIZAMOS LO MISMO PARA K = -K ---------------------------------------
+    //-----------------------------------   REALIZAMOS LO MISMO PARA K = -K ---------------------------------------
+    
+}
+
+cout << "***********************************************************************"  <<endl ;
+cout << "Resolucion completa." <<endl ; 
+cout << "***********************************************************************"  <<endl ; 
+cout << "Guardando datos en carpeta 'output'" <<endl ; 
+
+for(int i=0; i < DS; i =i+1)
+{
+    savevtk("output/E-"+i+".vtu", Th, [real(Erd[i]),real(Ezd[i]),real(Eod[i])]);
+    savevtk("output/B-"+i+".vtu", Th, [real(Brd[i]),real(Bzd[i]),real(Bod[i])] );
+	savevtk("output/p-" + i+ ".vtu",Th, real(psave[i]) );
+}
+
+real[int] Arraytime(Tdof);
+for( int i =0; i <Tdof ; i =i+1)
+{
+	Arraytime(i) = i* dt;
+}
+Deltadata(ncoil,:) = Arraytime;
+
+real[int,int] Deltadatareal(ncoil+1,Tdof);
+
+for(int i=0; i< ncoil+1; i=i+1)
+{
+    for(int j =0;j<Tdof;j=j+1)
+    {
+        Deltadatareal(i,j)= real(Deltadata(i,j));
+    }
+}
+
+{ofstream fout("impulsematrix.txt");
+fout << Deltadata << endl;
+}
