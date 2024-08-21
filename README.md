@@ -1,8 +1,8 @@
-## 23II016-Rhona SW TRF | Modelamiento matemático
+## Modelo axisimétrico
 
 ## Descripción
 
-Sección anexa al proyecto, en la que se hace un estudio de modelo Darwin en una geometría axisimétrica para obtención de la respuesta dinámica de una bobina de un transformador. Se realiza un esquema numérico bajo el método de elementos finitos en el programa FreFEM, uno de bastantes solvers _open source_.  Las consideraciones a tener en cuenta en los cálculos es que solo considera excitación en una vuelta,  que admite enmallados que tienen la suficiente precisión en los conductores, esto se debe a que se condiciona de mejor forma la matriz generada por el ensamble, y que los recursos entregados están pensados fuera del marco del funcionamiento del software.
+Estudio de modelo Darwin en una geometría axisimétrica para obtención de la respuesta dinámica de una bobina de un transformador. Se realiza un esquema numérico bajo el método de elementos finitos en el programa FreFEM, uno de bastantes solvers _open source_.  Las consideraciones a tener en cuenta en los cálculos es que solo considera excitación en una vuelta,  que admite enmallados que tienen la suficiente precisión en los conductores, esto se debe a que se condiciona de mejor forma la matriz generada por el ensamble, y que los recursos entregados están pensados fuera del marco del funcionamiento del software.
 
 ## Índice
 
