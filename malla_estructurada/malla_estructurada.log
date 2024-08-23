@@ -1,0 +1,29 @@
+           A:Ha ido agregado la magnitud en L^2:0.709674
+ 0x197b9edbd50 VTK_FILE 2
+ 0x197b9edbc30 VTK_FILE 2
+           Corriente en el primer conductor =-3.78566e+08
+CPU time (iteracion completa) = 28.502
+***********************************************************************
+Resolucion completa.
+***********************************************************************
+Guardando datos en carpeta 'output'
+ 0x197b9edc590 VTK_FILE 2
+ 0x197b9edbd50 VTK_FILE 2
+ 0x197b9edc260 VTK_FILE 2
+ 0x197b9edbc30 VTK_FILE 2
+ 0x197b9edc0e0 VTK_FILE 2
+ 0x197b9edbb40 VTK_FILE 2
+ 0x197b9edbd50 VTK_FILE 2
+ 0x197b9edbde0 VTK_FILE 2
+ 0x197b9edc590 VTK_FILE 2
+ 0x197b9edc0e0 VTK_FILE 2
+ 0x197b9edbdb0 VTK_FILE 2
+ 0x197b9edbb40 VTK_FILE 2
+ 0x197b9edc500 VTK_FILE 2
+ 0x197b9edbcf0 VTK_FILE 2
+ 0x197b9edc560 VTK_FILE 2
+times: compile 0.173s, execution 113.648s,  mpirank:0
+ ######## We forget of deleting   1162 Nb pointer,   0Bytes  ,  mpirank 0, memory leak =0
+ CodeAlloc : nb ptr  7566,  size :679328 mpirank: 0
+Ok: Normal End
+ try getConsole C:\Users\emond\OneDrive\Escritorio\archivos.rhona\malla_estructurada\malla_estructurada.edp
